@@ -1,0 +1,70 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  build:
+    desc: Build the Raylib.UI library in Release mode
+    cmds:
+      - dotnet build -c Release
+
+  test:
+    desc: Runs tests, optionally opens HTML coverage report
+    dir: ./Tests
+    vars:
+      HTML:
+        sh: echo "${HTML:-false}"
+    deps:
+      - install-reportgenerator
+    cmds:
+      - rm -rf TestResults
+      - dotnet test --collect:"XPlat Code Coverage"
+      - ~/.dotnet/tools/reportgenerator -reports:"$(find TestResults -name coverage.cobertura.xml | head -n 1)" -targetdir:"TestResults" -reporttypes:"TextSummary;Html"
+      - |
+        if [ "$HTML" = "true" ]; then
+          echo "Opening HTML report..."
+          open TestResults/index.html 2>/dev/null || echo "Couldn't auto-open browser"
+        else
+          total_lines=$(awk -F: '/Total lines/ {gsub(/ /, "", $2); print $2}' ./TestResults/Summary.txt)
+          line_coverage=$(awk -F: '/Line coverage/ {gsub(/[^0-9.]/, "", $2); print $2}' ./TestResults/Summary.txt)
+          printf "Total Lines\tLine Coverage\n" > ./TestResults/table.txt
+          printf "%s\t%s%%\n" "$total_lines" "$line_coverage" >> ./TestResults/table.txt
+          column -t -s $'\t' ./TestResults/table.txt
+        fi
+
+  pack:
+    desc: Package the NuGet .nupkg file (Release build)
+    cmds:
+      - task: build
+      - dotnet pack -c Release
+
+  release:
+    desc: Push the NuGet package to nuget.org
+    cmds:
+      - task: pack
+      - |
+        dotnet nuget push ./bin/Release/*.nupkg \
+          --api-key $NUGET_API_KEY \
+          --source https://api.nuget.org/v3/index.json
+    requires:
+      vars: [NUGET_API_KEY]
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - dotnet clean -c Release
+
+  ## Internal Tasks
+  install-reportgenerator:
+    desc: Ensures ReportGenerator tool is installed
+    cmds:
+      - |
+        if ! ~/.dotnet/tools/reportgenerator --version >/dev/null 2>&1; then
+          echo "Installing dotnet-reportgenerator-globaltool..."
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+        else
+          echo "ReportGenerator already installed."
+        fi
