@@ -10,13 +10,21 @@ public enum LayoutMode
     Vertical
 }
 
+public enum Alignment
+{
+    TopLeft, TopCenter, TopRight,
+    CenterLeft, CenterCenter, CenterRight,
+    BottomLeft, BottomCenter, BottomRight
+}
+
 public class UIElement
 {
     public string Name;
     public LayoutMode Layout = LayoutMode.Horizontal;
+    public Alignment ChildAlignment = Alignment.TopLeft;
     public float Gap = 0;
-    public Size OffsetX = Size.Zero();
-    public Size OffsetY = Size.Zero();
+    public float OffsetX = 0;
+    public float OffsetY = 0;
     public Size Width = Size.Grow();
     public Size Height = Size.Grow();
     public Spacing Margin = Spacing.Zero();
@@ -210,17 +218,58 @@ public class UIElement
         ContentRect.X = InnerRect.X + Padding.Left;
         ContentRect.Y = InnerRect.Y + Padding.Top;
         
-        // Calculate child positions based on layout mode
-        Vector2 childPosition = new Vector2(ContentRect.X, ContentRect.Y);
+        // Early return if no children
+        if (Children.Count == 0) return;
+        float totalWidth = Layout == LayoutMode.Horizontal ? (Children.Count - 1) * Gap : 0;
+        float totalHeight = Layout == LayoutMode.Vertical ? (Children.Count - 1) * Gap : 0;
         foreach (var child in Children)
         {
-            child.CalculatePosition(childPosition);
+            switch (Layout)
+            {
+                case LayoutMode.Horizontal:
+                    totalWidth += child.OuterRect.Width;
+                    totalHeight = Math.Max(totalHeight, child.OuterRect.Height);
+                    break;
+                case LayoutMode.Vertical:
+                    totalWidth = Math.Max(totalWidth, child.OuterRect.Width);
+                    totalHeight += child.OuterRect.Height;
+                    break;
+            }
+        }
+        
+        totalWidth = Math.Max(0, totalWidth);
+        totalHeight = Math.Max(0, totalHeight);
+        Vector2 childPosition = ChildAlignment switch
+        {
+            Alignment.TopLeft => new Vector2(ContentRect.X, ContentRect.Y),
+            Alignment.TopCenter => new Vector2(ContentRect.X + (ContentRect.Width - totalWidth) / 2, ContentRect.Y),
+            Alignment.TopRight => new Vector2(ContentRect.X + ContentRect.Width - totalWidth, ContentRect.Y),
+            Alignment.CenterLeft => new Vector2(ContentRect.X, ContentRect.Y + (ContentRect.Height - totalHeight) / 2),
+            Alignment.CenterCenter => new Vector2(ContentRect.X + (ContentRect.Width - totalWidth) / 2, ContentRect.Y + (ContentRect.Height - totalHeight) / 2),
+            Alignment.CenterRight => new Vector2(ContentRect.X + ContentRect.Width - totalWidth, ContentRect.Y + (ContentRect.Height - totalHeight) / 2),
+            Alignment.BottomLeft => new Vector2(ContentRect.X, ContentRect.Y + ContentRect.Height - totalHeight),
+            Alignment.BottomCenter => new Vector2(ContentRect.X + (ContentRect.Width - totalWidth) / 2, ContentRect.Y + ContentRect.Height - totalHeight),
+            Alignment.BottomRight => new Vector2(ContentRect.X + ContentRect.Width - totalWidth, ContentRect.Y + ContentRect.Height - totalHeight),
+            _ => new Vector2(ContentRect.X, ContentRect.Y) // Default to TopLeft
+        };
+        
+        // Position children with their individual offsets
+        foreach (var child in Children)
+        {
+            // Apply OffsetX/OffsetY to the calculated position
+            Vector2 finalPosition = childPosition + new Vector2(
+                child.OffsetX.Type == Size.Mode.Value ? child.OffsetX.Value : 0,
+                child.OffsetY.Type == Size.Mode.Value ? child.OffsetY.Value : 0
+            );
+            
+            child.CalculatePosition(finalPosition);
+            
+            // Update position for next child based on layout direction
             switch (Layout)
             {
                 case LayoutMode.Horizontal:
                     childPosition.X += child.OuterRect.Width + Gap;
                     break;
-                    
                 case LayoutMode.Vertical:
                     childPosition.Y += child.OuterRect.Height + Gap;
                     break;
