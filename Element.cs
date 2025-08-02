@@ -327,7 +327,7 @@ public class UIElement
 
     public void Render()
     {
-        Console.WriteLine($"{Name} position: {InnerRect.Position}");
+        RUI.Logger.LogInformation($"{Name} rect {InnerRect}");
         
         if (BackgroundColor.A > 0)
         {

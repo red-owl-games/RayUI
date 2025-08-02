@@ -1,9 +1,13 @@
 using System.Numerics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Raylib.UI;
 
 public static partial class RUI
 {
+    public static ILogger Logger { get; set; } = NullLogger.Instance;
+    
     public static void Update(float dt, Vector2 size, params UIElement[] elements)
     {
         UpdateInput();
