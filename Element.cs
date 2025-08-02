@@ -341,9 +341,6 @@ public class UIElement
     {
         if (BackgroundColor.A <= 0) return;
 
-        RUI.SetShaderSize(InnerRect.Size);
-        RUI.SetShaderRadius(BorderRadius);
-
         if (BackgroundTexture.HasValue)
         {
             var tex = BackgroundTexture.Value;
@@ -357,43 +354,9 @@ public class UIElement
         }
         else
         {
-            // Draw with default white texture — shader will tint with fillColor
             DrawTexturePro(RUI.white, RUI.whiteRect, InnerRect, Vector2.Zero, 0, BackgroundColor);
         }
     }
-    
-    /*
-    private void DrawBackground()
-    {
-        if (BackgroundColor.A > 0)
-        {
-            if (BackgroundTexture.HasValue)
-            {
-                var texture = BackgroundTexture.Value;
-                if (NPatch.HasValue)
-                {
-                    DrawTextureNPatch(texture, NPatch.Value, InnerRect, Vector2.Zero, 0, BackgroundColor);
-                }
-                else
-                {
-                    var srcRect = new Rectangle(0, 0, texture.Width, texture.Height);
-                    DrawTexturePro(texture, srcRect, InnerRect, Vector2.Zero, 0, BackgroundColor);
-                }
-            }
-            else
-            {
-                if (BorderRadius > 0)
-                {
-                    DrawRectangleRounded(InnerRect, BorderRadius, 8, BackgroundColor);
-                }
-                else
-                {
-                    DrawRectangleRec(InnerRect, BackgroundColor);
-                }
-            }
-        }
-    }
-    */
 
     private void DrawBoarder()
     {
