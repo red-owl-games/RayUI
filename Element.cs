@@ -25,6 +25,7 @@ public class UIElement
     public float Gap = 0;
     public float OffsetX = 0;
     public float OffsetY = 0;
+    public Vector2 Offset => new (OffsetX, OffsetY);
     public Size Width = Size.Grow();
     public Size Height = Size.Grow();
     public Spacing Margin = Spacing.Zero();
@@ -35,9 +36,6 @@ public class UIElement
     public float BorderWidth = 0;
     public Color BorderColor = Color.Black;
 
-    public Rectangle OuterRect;
-    public Rectangle InnerRect;
-    public Rectangle ContentRect;
     // |-------------Outer-------------|
     // |            Margin             |
     // |  |---------Boarder---------|  |
@@ -45,15 +43,42 @@ public class UIElement
     // |  | |       Padding       | |  |
     // |  | |   |---Content---|   | |  |
     // |  | |   |             |   | |  |
+    public Rectangle OuterRect;
+    public Rectangle InnerRect;
+    public Rectangle ContentRect;
     
     public UIElement? Parent { get; internal set; }
     private List<UIElement> Children { get; }  = [];
+    
+    private void SetPosition(Vector2 position)
+    {
+        var marginOffset = new Vector2(Margin.Left, Margin.Top);
+        var paddingOffset = new Vector2(Padding.Left, Padding.Top);
+        OuterRect.Position = position;
+        InnerRect.Position = position + marginOffset;
+        ContentRect.Position = position + marginOffset + paddingOffset;
+    }
+    
+    private void SetWidth(float value)
+    {
+        OuterRect.Width = value;
+        InnerRect.Width = value - Margin.Width;
+        ContentRect.Width = value - Margin.Width - Padding.Width;
+    }
 
-    public void SetParent(UIElement parent)
+    private void SetHeight(float value)
+    {
+        OuterRect.Height = value;
+        InnerRect.Height = value - Margin.Height;
+        ContentRect.Height = value - Margin.Height - Padding.Height;
+    }
+
+    public UIElement SetParent(UIElement? parent)
     {
         Parent?.Children.Remove(this);
         Parent = parent;
-        Parent.Children.Add(this);
+        Parent?.Children.Add(this);
+        return this;
     }
 
     public UIElement Add(params UIElement[] children)
@@ -67,13 +92,16 @@ public class UIElement
         return this;
     }
 
+    public void Clear()
+    {
+        Children.Clear();
+    }
+
     public void LayoutFitWidth(Vector2 space)
     {
         if (Width.Type == Size.Mode.Value)
         {
-            OuterRect.Width = Width.Value;
-            InnerRect.Width = Width.Value - Margin.Width;
-            ContentRect.Width = Width.Value - Margin.Width - Padding.Width;
+            SetWidth(Width.Value);
             space.X = ContentRect.Width;
             foreach (var child in Children) child.LayoutFitWidth(space);
         } else {
@@ -94,9 +122,7 @@ public class UIElement
                 }
             }
             
-            OuterRect.Width = minWidth + Margin.Width + Padding.Width;
-            InnerRect.Width = minWidth + Padding.Width;
-            ContentRect.Width = minWidth;
+            SetWidth(minWidth + Margin.Width + Padding.Width);
         }
     }
 
@@ -105,29 +131,34 @@ public class UIElement
         if (Children.Count == 0) return;
         
         // First, calculate grow/shrink for all children recursively
-        var totalWidth = 0f;
-        var totalGrowFactor = 0f;
+        var totalChildrenWidth = 0f;
+        var totalChildrenFactor = 0f;
         foreach (var child in Children)
         {
             child.LayoutGrowShrinkWidth(space);
-            totalWidth += child.OuterRect.Width;
+            totalChildrenWidth += child.OuterRect.Width;
             if (child.Width.Type == Size.Mode.Grow)
             {
-                totalGrowFactor += child.Width.Value;
+                totalChildrenFactor += child.Width.Value;
             }
         }
         
         // Calculate remaining space to distribute - this might be negative so then we shrink
-        float remainingSpace = ContentRect.Width - totalWidth;
+        var remainingSpace = ContentRect.Width - ((Children.Count - 1) * Gap) - totalChildrenWidth;
         foreach (var child in Children)
         {
             if (child.Width.Type == Size.Mode.Grow)
             {
-                // Calculate proportional space for this child
-                float extraWidth = (remainingSpace * child.Width.Value) / totalGrowFactor;
-                child.OuterRect.Width = Math.Max(0, child.OuterRect.Width + extraWidth);
-                child.InnerRect.Width = Math.Max(0, child.InnerRect.Width + extraWidth);
-                child.ContentRect.Width = Math.Max(0, child.ContentRect.Width + extraWidth);
+                switch (Layout)
+                {
+                    case LayoutMode.Horizontal:
+                        var extraWidth = remainingSpace * (child.Width.Value / totalChildrenFactor);
+                        child.SetWidth(Math.Max(0, child.OuterRect.Width + extraWidth));
+                        break;
+                    case LayoutMode.Vertical:
+                        child.SetWidth(ContentRect.Width * child.Width.Value);
+                        break;
+                }
             }
         }
     }
@@ -143,9 +174,7 @@ public class UIElement
     {
         if (Height.Type == Size.Mode.Value)
         {
-            OuterRect.Height = Height.Value;
-            InnerRect.Height = Height.Value - Margin.Height;
-            ContentRect.Height = Height.Value - Margin.Height - Padding.Height;
+            SetHeight(Height.Value);
             space.Y = ContentRect.Height;
             foreach (var child in Children) child.LayoutFitHeight(space);
         } else {
@@ -166,9 +195,7 @@ public class UIElement
                 }
             }
             
-            OuterRect.Height = minHeight + Margin.Height + Padding.Height;
-            InnerRect.Height = minHeight + Padding.Height;
-            ContentRect.Height = minHeight;
+            SetHeight(minHeight + Margin.Height + Padding.Height);
         }
     }
 
@@ -190,90 +217,109 @@ public class UIElement
         }
         
         // Calculate remaining space to distribute - this might be negative so then we shrink
-        float remainingSpace = ContentRect.Height - totalHeight;
+        var remainingSpace = ContentRect.Height - ((Children.Count - 1) * Gap) - totalHeight;
         foreach (var child in Children)
         {
             if (child.Height.Type == Size.Mode.Grow)
             {
-                // Calculate proportional space for this child
-                float extraHeight = (remainingSpace * child.Height.Value) / totalGrowFactor;
-                child.OuterRect.Height = Math.Max(0, child.OuterRect.Height + extraHeight);
-                child.InnerRect.Height = Math.Max(0, child.InnerRect.Height + extraHeight);
-                child.ContentRect.Height = Math.Max(0, child.ContentRect.Height + extraHeight);
+                switch (Layout)
+                {
+                    case LayoutMode.Horizontal:
+                        child.SetHeight(ContentRect.Height * child.Height.Value);
+                        break;
+                    case LayoutMode.Vertical:
+                        var extraHeight = remainingSpace * (child.Height.Value / totalGrowFactor);
+                        child.SetHeight(Math.Max(0, child.OuterRect.Height + extraHeight));
+                        break;
+                }
             }
         }
     }
 
     public void CalculatePosition(Vector2 position)
     {
-        // Set the outer rectangle position
-        OuterRect.X = position.X;
-        OuterRect.Y = position.Y;
-        
-        // Calculate inner rectangle position (outer + margin)
-        InnerRect.X = OuterRect.X + Margin.Left;
-        InnerRect.Y = OuterRect.Y + Margin.Top;
-        
-        // Calculate content rectangle position (inner + padding)
-        ContentRect.X = InnerRect.X + Padding.Left;
-        ContentRect.Y = InnerRect.Y + Padding.Top;
-        
-        // Early return if no children
-        if (Children.Count == 0) return;
-        float totalWidth = Layout == LayoutMode.Horizontal ? (Children.Count - 1) * Gap : 0;
-        float totalHeight = Layout == LayoutMode.Vertical ? (Children.Count - 1) * Gap : 0;
+        SetPosition(position);
+
+        if (Children.Count == 0)
+            return;
+
+        var totalMain = (Children.Count - 1) * Gap;
         foreach (var child in Children)
         {
             switch (Layout)
             {
                 case LayoutMode.Horizontal:
-                    totalWidth += child.OuterRect.Width;
-                    totalHeight = Math.Max(totalHeight, child.OuterRect.Height);
+                    totalMain += child.OuterRect.Width;
                     break;
                 case LayoutMode.Vertical:
-                    totalWidth = Math.Max(totalWidth, child.OuterRect.Width);
-                    totalHeight += child.OuterRect.Height;
+                    totalMain += child.OuterRect.Height;
                     break;
             }
         }
+        totalMain = Math.Max(0, totalMain);
         
-        totalWidth = Math.Max(0, totalWidth);
-        totalHeight = Math.Max(0, totalHeight);
-        Vector2 childPosition = ChildAlignment switch
+        var cursor = Layout switch
         {
-            Alignment.TopLeft => new Vector2(ContentRect.X, ContentRect.Y),
-            Alignment.TopCenter => new Vector2(ContentRect.X + (ContentRect.Width - totalWidth) / 2, ContentRect.Y),
-            Alignment.TopRight => new Vector2(ContentRect.X + ContentRect.Width - totalWidth, ContentRect.Y),
-            Alignment.CenterLeft => new Vector2(ContentRect.X, ContentRect.Y + (ContentRect.Height - totalHeight) / 2),
-            Alignment.CenterCenter => new Vector2(ContentRect.X + (ContentRect.Width - totalWidth) / 2, ContentRect.Y + (ContentRect.Height - totalHeight) / 2),
-            Alignment.CenterRight => new Vector2(ContentRect.X + ContentRect.Width - totalWidth, ContentRect.Y + (ContentRect.Height - totalHeight) / 2),
-            Alignment.BottomLeft => new Vector2(ContentRect.X, ContentRect.Y + ContentRect.Height - totalHeight),
-            Alignment.BottomCenter => new Vector2(ContentRect.X + (ContentRect.Width - totalWidth) / 2, ContentRect.Y + ContentRect.Height - totalHeight),
-            Alignment.BottomRight => new Vector2(ContentRect.X + ContentRect.Width - totalWidth, ContentRect.Y + ContentRect.Height - totalHeight),
-            _ => new Vector2(ContentRect.X, ContentRect.Y) // Default to TopLeft
+            LayoutMode.Horizontal => ChildAlignment switch
+            {
+                Alignment.TopLeft or Alignment.CenterLeft or Alignment.BottomLeft
+                    => new Vector2(ContentRect.X, 0),
+                Alignment.TopCenter or Alignment.CenterCenter or Alignment.BottomCenter
+                    => new Vector2(ContentRect.X + (ContentRect.Width - totalMain) / 2, 0),
+                Alignment.TopRight or Alignment.CenterRight or Alignment.BottomRight
+                    => new Vector2(ContentRect.X + ContentRect.Width - totalMain, 0),
+                _ => new Vector2(ContentRect.X, 0)
+            },
+            LayoutMode.Vertical => ChildAlignment switch
+            {
+                Alignment.TopLeft or Alignment.TopCenter or Alignment.TopRight
+                    => new Vector2(0, ContentRect.Y),
+                Alignment.CenterLeft or Alignment.CenterCenter or Alignment.CenterRight
+                    => new Vector2(0, ContentRect.Y + (ContentRect.Height - totalMain) / 2),
+                Alignment.BottomLeft or Alignment.BottomCenter or Alignment.BottomRight
+                    => new Vector2(0, ContentRect.Y + ContentRect.Height - totalMain),
+                _ => new Vector2(0, ContentRect.Y)
+            },
+            _ => Vector2.Zero
         };
-        
-        // Position children with their individual offsets
+
         foreach (var child in Children)
         {
-            // Apply OffsetX/OffsetY to the calculated position
-            Vector2 finalPosition = childPosition + new Vector2(
-                child.OffsetX.Type == Size.Mode.Value ? child.OffsetX.Value : 0,
-                child.OffsetY.Type == Size.Mode.Value ? child.OffsetY.Value : 0
-            );
-            
-            child.CalculatePosition(finalPosition);
-            
-            // Update position for next child based on layout direction
+            var final = cursor + child.Offset;
             switch (Layout)
             {
                 case LayoutMode.Horizontal:
-                    childPosition.X += child.OuterRect.Width + Gap;
+                    final.Y = ChildAlignment switch
+                    {
+                        Alignment.TopLeft or Alignment.TopCenter or Alignment.TopRight
+                            => ContentRect.Y + child.OffsetY,
+                        Alignment.CenterLeft or Alignment.CenterCenter or Alignment.CenterRight
+                            => ContentRect.Y + (ContentRect.Height - child.OuterRect.Height) / 2 + child.OffsetY,
+                        Alignment.BottomLeft or Alignment.BottomCenter or Alignment.BottomRight
+                            => ContentRect.Y + ContentRect.Height - child.OuterRect.Height + child.OffsetY,
+                        _ => final.Y
+                    };
                     break;
                 case LayoutMode.Vertical:
-                    childPosition.Y += child.OuterRect.Height + Gap;
+                    final.X = ChildAlignment switch
+                    {
+                        Alignment.TopLeft or Alignment.CenterLeft or Alignment.BottomLeft
+                            => ContentRect.X + child.OffsetX,
+                        Alignment.TopCenter or Alignment.CenterCenter or Alignment.BottomCenter
+                            => ContentRect.X + (ContentRect.Width - child.OuterRect.Width) / 2 + child.OffsetX,
+                        Alignment.TopRight or Alignment.CenterRight or Alignment.BottomRight
+                            => ContentRect.X + ContentRect.Width - child.OuterRect.Width + child.OffsetX,
+                        _ => final.X
+                    };
                     break;
             }
+
+            child.CalculatePosition(final);
+
+            if (Layout == LayoutMode.Horizontal)
+                cursor.X += child.OuterRect.Width + Gap;
+            else
+                cursor.Y += child.OuterRect.Height + Gap;
         }
     }
 
@@ -281,6 +327,8 @@ public class UIElement
 
     public void Render()
     {
+        Console.WriteLine($"{Name} position: {InnerRect.Position}");
+        
         if (BackgroundColor.A > 0)
         {
             if (BorderRadius > 0)
