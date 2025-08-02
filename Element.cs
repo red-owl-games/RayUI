@@ -1,4 +1,5 @@
 using System.Numerics;
+using Microsoft.Extensions.Logging;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -31,6 +32,8 @@ public class UIElement
     public Spacing Margin = Spacing.Zero();
     public Spacing Padding = Spacing.Zero();
     public Color BackgroundColor = new Color(0,0,0,0);
+    public Texture2D? BackgroundTexture;
+    public NPatchInfo? NPatch;
 
     public float BorderRadius = 0;
     public float BorderWidth = 0;
@@ -329,20 +332,71 @@ public class UIElement
     {
         RUI.Logger.LogInformation($"{Name} rect {InnerRect}");
         
+        DrawBackground();
+        foreach (var element in Children) element.Render();
+        DrawBoarder();
+    }
+    
+    private void DrawBackground()
+    {
+        if (BackgroundColor.A <= 0) return;
+
+        RUI.SetShaderSize(InnerRect.Size);
+        RUI.SetShaderRadius(BorderRadius);
+
+        if (BackgroundTexture.HasValue)
+        {
+            var tex = BackgroundTexture.Value;
+            if (NPatch.HasValue)
+            {
+                DrawTextureNPatch(tex, NPatch.Value, InnerRect, Vector2.Zero, 0, BackgroundColor);
+            } else {
+                var srcRect = new Rectangle(0, 0, tex.Width, tex.Height);
+                DrawTexturePro(tex, srcRect, InnerRect, Vector2.Zero, 0, BackgroundColor);
+            }
+        }
+        else
+        {
+            // Draw with default white texture — shader will tint with fillColor
+            DrawTexturePro(RUI.white, RUI.whiteRect, InnerRect, Vector2.Zero, 0, BackgroundColor);
+        }
+    }
+    
+    /*
+    private void DrawBackground()
+    {
         if (BackgroundColor.A > 0)
         {
-            if (BorderRadius > 0)
+            if (BackgroundTexture.HasValue)
             {
-                DrawRectangleRounded(InnerRect, BorderRadius, 8, BackgroundColor);
+                var texture = BackgroundTexture.Value;
+                if (NPatch.HasValue)
+                {
+                    DrawTextureNPatch(texture, NPatch.Value, InnerRect, Vector2.Zero, 0, BackgroundColor);
+                }
+                else
+                {
+                    var srcRect = new Rectangle(0, 0, texture.Width, texture.Height);
+                    DrawTexturePro(texture, srcRect, InnerRect, Vector2.Zero, 0, BackgroundColor);
+                }
             }
             else
             {
-                DrawRectangleRec(InnerRect, BackgroundColor);
+                if (BorderRadius > 0)
+                {
+                    DrawRectangleRounded(InnerRect, BorderRadius, 8, BackgroundColor);
+                }
+                else
+                {
+                    DrawRectangleRec(InnerRect, BackgroundColor);
+                }
             }
         }
+    }
+    */
 
-        foreach (var element in Children) element.Render();
-
+    private void DrawBoarder()
+    {
         if (BorderWidth > 0)
         {
             if (BorderRadius > 0)
