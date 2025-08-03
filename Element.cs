@@ -39,6 +39,14 @@ public class UIElement
     public float BorderWidth = 0;
     public Color BorderColor = Color.Black;
 
+    public string Text = "";
+    public float TextSize = 14f;
+    public float TextSpacing = 4f;
+    public Color TextColor = Color.Gray;
+    public Font TextFont = RUI.DefaultFont;
+    public Vector2 TextMeasurement = Vector2.Zero;
+
+
     // |-------------Outer-------------|
     // |            Margin             |
     // |  |---------Boarder---------|  |
@@ -138,7 +146,6 @@ public class UIElement
         var totalChildrenFactor = 0f;
         foreach (var child in Children)
         {
-            child.LayoutGrowShrinkWidth(space);
             totalChildrenWidth += child.OuterRect.Width;
             if (child.Width.Type == Size.Mode.Grow)
             {
@@ -163,12 +170,18 @@ public class UIElement
                         break;
                 }
             }
+            child.LayoutGrowShrinkWidth(ContentRect.Size);
         }
     }
 
     public void LayoutWrapText(Vector2 space)
     {
         // TODO: Implement
+        TextMeasurement = MeasureTextEx(TextFont, Text, TextSize, TextSpacing);
+        if (ContentRect.Width < TextMeasurement.X)
+        {
+            SetWidth(float.Min(TextMeasurement.X + Margin.Width + Padding.Width, space.X));
+        }
         space = ContentRect.Size;
         foreach (var element in Children) element.LayoutWrapText(space);
     }
@@ -211,7 +224,6 @@ public class UIElement
         var totalGrowFactor = 0f;
         foreach (var child in Children)
         {
-            child.LayoutGrowShrinkHeight(space);
             totalHeight += child.OuterRect.Height;
             if (child.Height.Type == Size.Mode.Grow)
             {
@@ -236,6 +248,7 @@ public class UIElement
                         break;
                 }
             }
+            child.LayoutGrowShrinkHeight(ContentRect.Size);
         }
     }
 
@@ -334,6 +347,7 @@ public class UIElement
         
         DrawBackground();
         foreach (var element in Children) element.Render();
+        DrawText();
         DrawBoarder();
     }
     
@@ -354,8 +368,21 @@ public class UIElement
         }
         else
         {
-            DrawTexturePro(RUI.white, RUI.whiteRect, InnerRect, Vector2.Zero, 0, BackgroundColor);
+            if (BorderRadius > 0)
+            {
+                DrawRectangleRounded(InnerRect, BorderRadius, 12, BackgroundColor);
+            }
+            else
+            {
+                DrawRectangleRec(InnerRect, BackgroundColor);
+            }
         }
+    }
+
+    private void DrawText()
+    {
+        if (Text == "") return;
+        DrawTextPro(TextFont, Text, ContentRect.Position + (ContentRect.Size * 0.5f), TextMeasurement * 0.5f, 0, TextSize, TextSpacing, TextColor);
     }
 
     private void DrawBoarder()
