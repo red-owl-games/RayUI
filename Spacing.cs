@@ -11,6 +11,8 @@ public struct Spacing(float top, float right, float bottom, float left)
     public float Height => top + bottom;
 
     public static Spacing Zero() => New(0);
+    
+    ///New 1 - (All), 2 (Top/Bottom, Right/Left), 4 (Top, Right, Bottom, Left)
     public static Spacing New(params float[] values)
     {
         return values.Length switch

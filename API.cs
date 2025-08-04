@@ -21,6 +21,7 @@ public static partial class RUI
     {
         UpdateInput();
 
+        foreach (var element in elements) element.SetSize(size);
         foreach (var element in elements) element.LayoutFitWidth(size);
         foreach (var element in elements) element.LayoutGrowShrinkWidth(size);
         foreach (var element in elements) element.LayoutWrapText(size);

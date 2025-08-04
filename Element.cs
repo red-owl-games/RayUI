@@ -108,6 +108,12 @@ public class UIElement
         Children.Clear();
     }
 
+    public void SetSize(Vector2 size)
+    {
+        SetWidth(size.X);
+        SetHeight(size.Y);
+    }
+
     public void LayoutFitWidth(Vector2 space)
     {
         if (Width.Type == Size.Mode.Value)
@@ -133,7 +139,8 @@ public class UIElement
                 }
             }
             
-            SetWidth(minWidth + Margin.Width + Padding.Width);
+            if (Width.Type == Size.Mode.Fit)
+                SetWidth(minWidth + Margin.Width + Padding.Width);
         }
     }
 
@@ -211,7 +218,8 @@ public class UIElement
                 }
             }
             
-            SetHeight(minHeight + Margin.Height + Padding.Height);
+            if (Height.Type == Size.Mode.Fit)
+                SetHeight(minHeight + Margin.Height + Padding.Height);
         }
     }
 
@@ -339,7 +347,10 @@ public class UIElement
         }
     }
 
-    public virtual void Update(float dt) {}
+    public virtual void Update(float dt)
+    {
+        foreach (var child in Children) child.Update(dt);
+    }
 
     public void Render()
     {
