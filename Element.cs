@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
-namespace Raylib.UI;
+namespace RayUI;
 
 public enum LayoutMode
 {

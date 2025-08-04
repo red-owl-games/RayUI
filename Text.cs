@@ -1,4 +1,4 @@
-namespace Raylib.UI;
+namespace RayUI;
 
 public static partial class RUI
 {

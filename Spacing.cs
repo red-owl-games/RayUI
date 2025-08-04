@@ -1,4 +1,4 @@
-namespace Raylib.UI;
+namespace RayUI;
 
 public struct Spacing(float top, float right, float bottom, float left)
 {

@@ -1,7 +1,7 @@
 using System.Numerics;
 using static Raylib_cs.Raylib;
 
-namespace Raylib.UI;
+namespace RayUI;
 
 public static partial class RUI
 {

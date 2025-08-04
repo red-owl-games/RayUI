@@ -11,6 +11,7 @@
       <Description>Retained-mode UI toolkit for Raylib_CS</Description>
       <PackageTags>raylib ui retained-mode graphics game-dev</PackageTags>
       <RepositoryUrl>https://github.com/red-owl-games/RayUI</RepositoryUrl>
+      <RootNamespace>Raylib.UI</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
